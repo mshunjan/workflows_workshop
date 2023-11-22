@@ -6,6 +6,9 @@ image: ghcr.io/nextflow-io/training:latest
 tasks:
     - before: printf 'unset JAVA_TOOL_OPTIONS\n' >> $HOME/.bashrc && exit
 
+    - init: echo 'Starting up...'
+      command: gp preview README.md
+      
     - name: Start Nextflow Tutorial
       command: |
           cd part_1
@@ -13,9 +16,6 @@ tasks:
           export PS1='\[\e[3;36m\]${PWD/*\//} ->\[\e[0m\] '
           unset JAVA_TOOL_OPTIONS
           clear
-
-    - init: echo 'Starting up...'
-      command: gp preview README.md
 
 vscode:
     extensions:
