@@ -31,4 +31,4 @@ RUN useradd -m appuser
 USER appuser
 
 # Set the default command for the container
-CMD ["python", "/app/your_plotting_script.py"]
+CMD ["python", "/app/plot_data.py"]
