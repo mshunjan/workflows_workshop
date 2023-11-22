@@ -13,17 +13,19 @@ log.info """\
     """
     .stripIndent()
 
+ch_read_pairs = Channel.fromFilePairs(params.reads)
+
 process FASTQC {
     input:
-    path reads
+    tuple val(sample_id), path(reads)
 
     output:
-    path('fastqc_results'), emit: qc_results
+    path "fastqc_${sample_id}_logs"
 
     script:
     """
-    mkdir -p fastqc_results
-    fastqc $reads --outdir fastqc_results
+    mkdir fastqc_${sample_id}_logs
+    fastqc -o fastqc_${sample_id}_logs -f fastq -q ${reads}
     """
 }
 
