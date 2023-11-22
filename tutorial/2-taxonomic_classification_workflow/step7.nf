@@ -16,7 +16,6 @@ log.info """\
 ch_read_pairs = Channel.fromFilePairs(params.reads)
 
 process FASTQC {
-
     input:
     tuple val(sample_id), path(reads)
 
@@ -29,7 +28,6 @@ process FASTQC {
     fastqc -o fastqc_${sample_id}_logs -f fastq -q ${reads}
     """
 }
-
 process UNPACK_DATABASE {
 
     input:
@@ -41,14 +39,14 @@ process UNPACK_DATABASE {
     script:
     """
     mkdir kraken_db
-    tar xzvf "${database}" -C kraken_db
+    tar xzvf "${database}" -C kraken_db --strip-components=1
     
     """
 }
 
 process KRAKEN2 {
     input:
-    path reads
+    tuple val(sample_id), path(reads)    
     path db
 
     output:
@@ -75,23 +73,18 @@ process BRACKEN {
     path db
 
     output:
-    path('bracken_output'), emit: bracken_results
+    path('bracken_output.tsv'), emit: bracken_results
 
     when:
     task.ext.when == null || task.ext.when
 
-    script:
-    def threshold = meta.threshold ?: 10
-    def taxonomic_level = meta.taxonomic_level ?: 'S'
-    def read_length = meta.read_length ?: 150
-    def args = task.ext.args ?: "-l ${taxonomic_level} -t ${threshold} -r ${read_length}"
-    bracken_report = "${kraken_report.basename}.tsv"
+    script: 
     """
     bracken \\
-        ${args} \\
-        -d '${database}' \\
+        -l S -t 10 -r 150 \\
+        -d '${db}' \\
         -i '${kraken_report}' \\
-        -o '${bracken_report}'
+        -o  bracken_output.tsv
     """
 }
 

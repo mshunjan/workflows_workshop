@@ -17,18 +17,17 @@ ch_read_pairs = Channel.fromFilePairs(params.reads)
 
 process FASTQC {
     input:
-    path reads
+    tuple val(sample_id), path(reads)
 
     output:
-    path ('fastqc_results'), emit: qc_results
+    path "fastqc_${sample_id}_logs"
 
     script:
     """
-    mkdir -p fastqc_results
-    fastqc $reads --outdir fastqc_results
+    mkdir fastqc_${sample_id}_logs
+    fastqc -o fastqc_${sample_id}_logs -f fastq -q ${reads}
     """
 }
-
 process UNPACK_DATABASE {
 
     input:
@@ -40,14 +39,14 @@ process UNPACK_DATABASE {
     script:
     """
     mkdir kraken_db
-    tar xzvf "${database}" -C kraken_db
+    tar xzvf "${database}" -C kraken_db --strip-components=1
     
     """
 }
 
 process KRAKEN2 {
     input:
-    path reads
+    tuple val(sample_id), path(reads)    
     path db
 
     output:
@@ -79,8 +78,8 @@ workflow {
     )
 
     ch_kraken_db = UNPACK_DATABASE.out.db
-
-    KRAKEN2(ch_read_pairs, ch_kraken_db)
-
-    ch_report = KRAKEN2.out.report
+    KRAKEN2(
+        ch_read_pairs, 
+        ch_kraken_db
+    )
 }
