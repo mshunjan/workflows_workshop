@@ -17,6 +17,11 @@ Don’t miss the opportunity to unlock new efficiencies in your bioinformatics p
 
 ## Setting up your environment
 1. Open up the repository using [![Gitpod](https://img.shields.io/badge/Gitpod-%20Open%20in%20Gitpod-908a85?logo=gitpod)](https://gitpod.io/#https://github.com/mshunjan/workflows_workshop)
+2. Sample sheet data for kraken: 
+    https://raw.githubusercontent.com/nf-core/test-datasets/viralrecon/samplesheet/samplesheet_test_illumina_amplicon.csv
+
+    Db:
+    https://genome-idx.s3.amazonaws.com/kraken/k2_viral_20220908.tar.gz
 
 ## Credits & Copyright
 

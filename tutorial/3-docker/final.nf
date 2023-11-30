@@ -17,19 +17,19 @@ ch_read_pairs = Channel.fromFilePairs(params.reads)
 
 process FASTQC {
     container 'quay.io/biocontainers/fastqc:0.11.9--0'
+    
     input:
-    path reads
+    tuple val(sample_id), path(reads)
 
     output:
-    path ('fastqc_results'), emit: qc_results
+    path "fastqc_${sample_id}_logs", emit: qc_results
 
     script:
     """
-    mkdir -p fastqc_results
-    fastqc $reads --outdir fastqc_results
+    mkdir fastqc_${sample_id}_logs
+    fastqc -o fastqc_${sample_id}_logs -f fastq -q ${reads}
     """
 }
-
 process UNPACK_DATABASE {
 
     input:
@@ -41,15 +41,16 @@ process UNPACK_DATABASE {
     script:
     """
     mkdir kraken_db
-    tar xzvf "${database}" -C kraken_db
+    tar xzvf "${database}" -C kraken_db --strip-components=1
     
     """
 }
 
 process KRAKEN2 {
     container 'quay.io/biocontainers/mulled-v2-5799ab18b5fc681e75923b2450abaa969907ec98:87fc08d11968d081f3e8a37131c1f1f6715b6542-0'
+    
     input:
-    path reads
+    tuple val(sample_id), path(reads)    
     path db
 
     output:
@@ -72,47 +73,26 @@ process KRAKEN2 {
 
 process BRACKEN {
     container 'quay.io/biocontainers/bracken:2.7--py39hc16433a_0'
+    
     input:
     path kraken_report
     path db
 
     output:
-    path('bracken_output'), emit: bracken_results
+    path('bracken_output.tsv'), emit: bracken_results
 
     when:
     task.ext.when == null || task.ext.when
 
-    script:
-    def threshold = meta.threshold ?: 10
-    def taxonomic_level = meta.taxonomic_level ?: 'S'
-    def read_length = meta.read_length ?: 150
-    def args = task.ext.args ?: "-l ${taxonomic_level} -t ${threshold} -r ${read_length}"
-    bracken_report = "${kraken_report.basename}.tsv"
+    script: 
     """
     bracken \\
-        ${args} \\
-        -d '${database}' \\
+        -l S -t 10 -r 150 \\
+        -d '${db}' \\
         -i '${kraken_report}' \\
-        -o '${bracken_report}'
+        -o  bracken_output.tsv
     """
 }
-
-process PLOT_DATA {
-    container 'plot-data:latest'
-    publishDir "${params.outdir}/plots", mode: 'copy'
-
-    input:
-    path data_file
-
-    output:
-    path "${params.outdir}/plots/*.html", emit: plot
-
-    script:
-    """
-    python ./plot_data.py -i $data_file -o ${params.outdir}/plots/output.html
-    """
-}
-
 
 process MULTIQC {
     container 'quay.io/biocontainers/multiqc:1.13--pyhdfd78af_0'
@@ -140,12 +120,9 @@ workflow {
     KRAKEN2(ch_read_pairs, ch_kraken_db)
 
     ch_report = KRAKEN2.out.report
-    BRACKEN(ch_report, ch_kraken_db)
-
-    PLOT_DATA(BRACKEN.out.bracken_results)
-    ch_plot = PLOT_DATA.out.plot
-    
-    MULTIQC(quant_ch.mix(FASTQC.out.qc_results).collect())
+    BRACKEN (ch_report, ch_kraken_db)
+    ch_multiqc_files = Channel.empty()
+    MULTIQC(ch_multiqc_files.mix(FASTQC.out.qc_results).collect())
 }
 
 workflow.onComplete {

@@ -16,11 +16,13 @@ log.info """\
 ch_read_pairs = Channel.fromFilePairs(params.reads)
 
 process FASTQC {
+    container 'quay.io/biocontainers/fastqc:0.11.9--0'
+    
     input:
     tuple val(sample_id), path(reads)
 
     output:
-    path "fastqc_${sample_id}_logs"
+    path "fastqc_${sample_id}_logs", emit: qc_results
 
     script:
     """
@@ -45,6 +47,8 @@ process UNPACK_DATABASE {
 }
 
 process KRAKEN2 {
+    container 'quay.io/biocontainers/mulled-v2-5799ab18b5fc681e75923b2450abaa969907ec98:87fc08d11968d081f3e8a37131c1f1f6715b6542-0'
+    
     input:
     tuple val(sample_id), path(reads)    
     path db
@@ -68,6 +72,8 @@ process KRAKEN2 {
 }
 
 process BRACKEN {
+    container 'quay.io/biocontainers/bracken:2.7--py39hc16433a_0'
+    
     input:
     path kraken_report
     path db
@@ -89,6 +95,7 @@ process BRACKEN {
 }
 
 process MULTIQC {
+    container 'quay.io/biocontainers/multiqc:1.13--pyhdfd78af_0'
     publishDir params.outdir, mode:'copy'
 
     input:
@@ -114,8 +121,8 @@ workflow {
 
     ch_report = KRAKEN2.out.report
     BRACKEN (ch_report, ch_kraken_db)
-    
-    MULTIQC(quant_ch.mix(FASTQC.out.qc_results).collect())
+    ch_multiqc_files = Channel.empty()
+    MULTIQC(ch_multiqc_files.mix(FASTQC.out.qc_results).collect())
 }
 
 workflow.onComplete {
